@@ -76,7 +76,45 @@
     </section>
 
     <section>
-      <div class="section-title"><div><span>04</span><h2>Downsell watch</h2></div><p>แนวโน้ม MTD และประมาณการสิ้นเดือน</p></div>
+      <div class="section-title"><div><span>04</span><h2>Area focus table</h2></div><p>รายละเอียด July vs August ครบทั้ง 15 พื้นที่</p></div>
+      <article class="focus-table-card">
+        <div class="focus-table-toolbar">
+          <div>
+            <h3>Performance by Region</h3>
+            <p>เลือก Area ด้านบนเพื่อไฮไลต์แถว โดยตารางยังแสดงครบทุกพื้นที่</p>
+          </div>
+          <div class="focus-table-badges"><span id="focusTableService">TMH + TOL</span><span id="focusTableCount">15 Areas</span></div>
+        </div>
+        <div class="table-scroll" role="region" aria-label="ตารางเปรียบเทียบ Performance รายพื้นที่" tabindex="0">
+          <table class="focus-table">
+            <caption>เปรียบเทียบ Revenue Request, Revenue Save, Churn Value และ Save Rate ระหว่าง July และ August</caption>
+            <thead>
+              <tr>
+                <th class="group-region" rowspan="2" scope="col">Region</th>
+                <th class="group-request" colspan="4" scope="colgroup">Revenue Request</th>
+                <th class="group-save" colspan="4" scope="colgroup">Revenue Save</th>
+                <th class="group-churn" colspan="4" scope="colgroup">Churn Value</th>
+                <th class="group-rate" colspan="3" scope="colgroup">%Save</th>
+                <th class="group-budget" rowspan="2" scope="col">Budget<br>Churn</th>
+                <th class="group-budget" rowspan="2" scope="col">MTD Budget<br>Churn</th>
+                <th class="group-budget" rowspan="2" scope="col">Over<br>Budget</th>
+                <th class="group-tier" rowspan="2" scope="col">Status Tier</th>
+              </tr>
+              <tr>
+                <th class="sub-request" scope="col">Jul-26</th><th class="sub-request" scope="col">Aug-26</th><th class="sub-request" scope="col">MoM</th><th class="sub-request" scope="col">%MoM</th>
+                <th class="sub-save" scope="col">Jul-26</th><th class="sub-save" scope="col">Aug-26</th><th class="sub-save" scope="col">MoM</th><th class="sub-save" scope="col">%MoM</th>
+                <th class="sub-churn" scope="col">Jul-26</th><th class="sub-churn" scope="col">Aug-26</th><th class="sub-churn" scope="col">MoM</th><th class="sub-churn" scope="col">%MoM</th>
+                <th class="sub-rate" scope="col">Jul-26</th><th class="sub-rate" scope="col">Aug-26</th><th class="sub-rate" scope="col">MoM</th>
+              </tr>
+            </thead>
+            <tbody id="focusTableBody"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section>
+      <div class="section-title"><div><span>05</span><h2>Downsell watch</h2></div><p>แนวโน้ม MTD และประมาณการสิ้นเดือน</p></div>
       <div class="downsell-layout">
         <article class="panel downsell-summary" id="downsellSummary"></article>
         <article class="panel">
@@ -87,7 +125,7 @@
     </section>
 
     <section>
-      <div class="section-title"><div><span>05</span><h2>Insight to action</h2></div><p>ข้อสังเกตจากข้อมูลสำหรับ daily huddle</p></div>
+      <div class="section-title"><div><span>06</span><h2>Insight to action</h2></div><p>ข้อสังเกตจากข้อมูลสำหรับ daily huddle</p></div>
       <div class="insight-grid" id="insightGrid"></div>
     </section>
   </main>
