@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Infographic dashboard สำหรับติดตาม Performance Retention TMH, TOL และ Downsell แบบรายวัน">
+  <meta name="theme-color" content="#101b3b">
+  <meta property="og:title" content="Retention Performance Command Center">
+  <meta property="og:description" content="ติดตาม TMH, TOL, MoM และ Downsell จาก Google Sheet ในมุมมองเดียว">
+  <meta property="og:type" content="website">
+  <title>Retention Performance Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="hero__glow hero__glow--one"></div>
+    <div class="hero__glow hero__glow--two"></div>
+    <div class="shell hero__inner">
+      <div>
+        <div class="eyebrow"><span class="live-dot"></span> DAILY RETENTION PERFORMANCE</div>
+        <h1>Retention Performance<br><span>Command Center</span></h1>
+        <p class="hero__copy">สรุปภาพรวม TMH, TOL และ Downsell เพื่อเห็นความเสี่ยงและโอกาสในไม่กี่วินาที</p>
+      </div>
+      <div class="hero__meta">
+        <div class="status-pill" id="dataStatus"><span></span>กำลังโหลดข้อมูล...</div>
+        <div class="meta-date">ข้อมูล Performance ณ <strong id="performanceDate">—</strong></div>
+        <div class="meta-date">ข้อมูล Downsell ณ <strong id="downsellDate">—</strong></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="shell dashboard">
+    <section class="control-bar" aria-label="ตัวกรองข้อมูล">
+      <div class="control-heading">
+        <span class="control-icon">⌁</span>
+        <div><strong>มุมมองข้อมูล</strong><small>เลือกบริการหรือพื้นที่เพื่อเจาะรายละเอียด</small></div>
+      </div>
+      <label>บริการ
+        <select id="serviceFilter"><option value="ALL">TMH + TOL</option><option value="TMH">TMH</option><option value="TOL">TOL</option></select>
+      </label>
+      <label>พื้นที่
+        <select id="regionFilter"><option value="ALL">ทุกพื้นที่</option></select>
+      </label>
+      <button id="refreshButton" type="button">↻ อัปเดตข้อมูล</button>
+      <a class="sheet-link" id="sheetLink" href="https://docs.google.com/spreadsheets/d/1gw9c97wtVitsn5B8P9ugwavD4xOGf3M_RScNGvk_hNM/edit" target="_blank" rel="noopener">เปิด Google Sheet ↗</a>
+    </section>
+
+    <section>
+      <div class="section-title"><div><span>01</span><h2>Executive snapshot</h2></div><p>ตัวเลขหลักของงวดล่าสุดตามตัวกรอง</p></div>
+      <div class="kpi-grid" id="kpiGrid"></div>
+    </section>
+
+    <section class="service-grid" id="serviceCards" aria-label="ผลการดำเนินงาน TMH และ TOL"></section>
+
+    <section>
+      <div class="section-title"><div><span>02</span><h2>July vs August</h2></div><p>เทียบเดือนต่อเดือน ณ จำนวนวันเท่ากัน</p></div>
+      <div class="comparison-grid" id="comparisonGrid"></div>
+    </section>
+
+    <section>
+      <div class="section-title"><div><span>03</span><h2>Area performance</h2></div><p>จัดอันดับพื้นที่เพื่อหา priority ที่ควรลงมือก่อน</p></div>
+      <div class="area-layout">
+        <article class="panel">
+          <div class="panel__head"><div><h3>Save rate by area</h3><p>เรียงจากต่ำไปสูง • เส้นเป้าหมาย 88%</p></div><span class="legend"><i class="teal"></i>Save rate</span></div>
+          <div class="bar-list" id="saveRateBars"></div>
+        </article>
+        <article class="panel">
+          <div class="panel__head"><div><h3>Run rate / Cap</h3><p>ยิ่งสูงยิ่งต้องเร่งควบคุม Churn</p></div><span class="legend"><i class="magenta"></i>RR / Cap</span></div>
+          <div class="bar-list" id="runRateBars"></div>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title"><div><span>04</span><h2>Downsell watch</h2></div><p>แนวโน้ม MTD และประมาณการสิ้นเดือน</p></div>
+      <div class="downsell-layout">
+        <article class="panel downsell-summary" id="downsellSummary"></article>
+        <article class="panel">
+          <div class="panel__head"><div><h3>พื้นที่เสี่ยงจาก Run rate</h3><p>5 อันดับสูงสุดเมื่อเทียบ Budget</p></div></div>
+          <div class="bar-list" id="downsellBars"></div>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title"><div><span>05</span><h2>Insight to action</h2></div><p>ข้อสังเกตจากข้อมูลสำหรับ daily huddle</p></div>
+      <div class="insight-grid" id="insightGrid"></div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="shell"><div><strong>Retention Performance Command Center</strong><span>อัปเดตผ่าน Google Sheet • Aggregate by area</span></div><p>ข้อมูลนี้ใช้เพื่อการบริหารผลการดำเนินงานภายใน</p></div>
+  </footer>
+  <noscript>กรุณาเปิด JavaScript เพื่อแสดง dashboard</noscript>
+  <script src="fallback-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
+
