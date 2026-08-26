@@ -3,12 +3,13 @@ const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit
 const PERF_HEADERS = ["Report Date","Service","Region","No Shop","Rev Request","Rev Save","Churn Value","Budget Churn Month","Cutoff Day","Days in Month","Save Rate","RR Churn","RR / Cap","Tier"];
 const DOWN_HEADERS = ["Report Date","Region","No Shop","Budget Downsell","Downsell Retention","Downsell Aftersale","Cutoff Day","Days in Month","Total Downsell","RR Downsell","MTD / Budget","RR / Budget","Over Budget Records","Status"];
 const BRANCH_HEADERS = ["Report Date","Service","Area Group","Region","Shop Name","Shop Type","Request Jul","Request Aug","Request MoM","Request %MoM","Save Jul","Save Aug","Save MoM","Save %MoM","Churn Jul","Churn Aug","Churn MoM","Churn %MoM","Save Rate Jul","Save Rate Aug","Save Rate MoM","Budget Churn","MTD Budget Churn","Over Budget","Tier","Cutoff Day","Days in Month"];
+const DOWNSELL_DETAIL_HEADERS = ["Report Date","Level","Area Group","Region","Shop Name","Shop Type","No Shop","Budget Downsell","Downsell Retention","Downsell Aftersale","Total Downsell","RR Downsell","MTD / Budget","RR / Budget","Over Budget Records","Status","Last Month","Cutoff Day","Days in Month"];
 const AREA_GROUPS = {
   "BMA 5 Area": ["BMA I - North West","BMA II - South West","BMA III - North East","BMA IV - South East","BMA V - Central"],
   UPC1: ["UPC - Central Northeast","UPC - Lower North","UPC - Lower Northeast","UPC - Upper North","UPC - Upper Northeast"],
   UPC2: ["UPC - Central","UPC - East","UPC - Upper South","UPC - West","UPC - Lower South"]
 };
-let store = { performance: [], downsell: [], branches: [], live: false, branchLive: false };
+let store = { performance: [], downsell: [], branches: [], downsellDetails: [], live: false, branchLive: false, downsellDetailLive: false };
 
 const $ = id => document.getElementById(id);
 const n = value => Number(value || 0);
@@ -67,18 +68,20 @@ async function loadData(){
   const status=$("dataStatus");
   status.className="status-pill";
   status.innerHTML="<span></span>กำลังโหลดข้อมูล...";
-  const [performance,downsell,branches]=await Promise.allSettled([
-    loadGviz("Performance_Daily"),loadGviz("Downsell_Area_Daily"),loadGviz("Branch_Performance_Daily")
+  const [performance,downsell,branches,downsellDetails]=await Promise.allSettled([
+    loadGviz("Performance_Daily"),loadGviz("Downsell_Area_Daily"),loadGviz("Branch_Performance_Daily"),loadGviz("Downsell_Performance_Daily")
   ]);
   const coreLive=performance.status==="fulfilled"&&downsell.status==="fulfilled";
   store={
     performance:coreLive?rowObjects(performance.value,PERF_HEADERS):rowObjects(window.RETENTION_FALLBACK.performance,PERF_HEADERS),
     downsell:coreLive?rowObjects(downsell.value,DOWN_HEADERS):rowObjects(window.RETENTION_FALLBACK.downsell,DOWN_HEADERS),
     branches:branches.status==="fulfilled"?rowObjects(branches.value,BRANCH_HEADERS):[],
+    downsellDetails:downsellDetails.status==="fulfilled"?rowObjects(downsellDetails.value,DOWNSELL_DETAIL_HEADERS):[],
     live:coreLive,
-    branchLive:branches.status==="fulfilled"
+    branchLive:branches.status==="fulfilled",
+    downsellDetailLive:downsellDetails.status==="fulfilled"
   };
-  if(coreLive&&store.branchLive){status.className="status-pill live";status.innerHTML="<span></span>Live from Google Sheet";}
+  if(coreLive&&store.branchLive&&store.downsellDetailLive){status.className="status-pill live";status.innerHTML="<span></span>Live from Google Sheet";}
   else if(coreLive){status.className="status-pill fallback";status.innerHTML="<span></span>Live • รอข้อมูลรายสาขา";}
   else{status.className="status-pill fallback";status.innerHTML="<span></span>Snapshot • รอสิทธิ์ Google Sheet";}
   populateRegions();render();
@@ -86,7 +89,7 @@ async function loadData(){
 
 function populateRegions(){
   const select=$("regionFilter"),group=$("areaGroupFilter").value,current=select.value;
-  const regions=[...new Set([...store.performance.map(row=>row.Region),...store.downsell.map(row=>row.Region),...store.branches.map(row=>row.Region)].filter(region=>region&&region!=="ALL"&&(group==="ALL"||AREA_GROUPS[group]?.includes(region))))].sort();
+  const regions=[...new Set([...store.performance.map(row=>row.Region),...store.downsell.map(row=>row.Region),...store.branches.map(row=>row.Region),...store.downsellDetails.map(row=>row.Region)].filter(region=>region&&region!=="ALL"&&(group==="ALL"||AREA_GROUPS[group]?.includes(region))))].sort();
   select.innerHTML='<option value="ALL">ทุกพื้นที่ในกลุ่ม</option>'+regions.map(region=>`<option value="${escapeHtml(region)}">${escapeHtml(region)}</option>`).join("");
   select.value=regions.includes(current)?current:"ALL";
 }
@@ -163,14 +166,16 @@ function areaFocusData(service,group,region){
 }
 
 const tone=(value,inverse=false)=>deltaClass(value,inverse);
+const serviceClass=service=>service==="TMH"?"tmh":service==="TOL"?"tol":"all";
 function focusRowHtml(row,selectedRegion,isTotal=false){
   const selected=!isTotal&&selectedRegion!=="ALL"&&row.region===selectedRegion;
-  return `<tr class="${isTotal?"grand-total ":""}${selected?"is-focus":""}"${selected?' aria-current="true"':""}><th class="region-cell" scope="row">${escapeHtml(row.region)}${selected?'<span class="focus-mark">Focus</span>':""}</th><td>${fmtFull(row.requestJul)}</td><td>${fmtFull(row.requestAug)}</td><td class="cell-tone ${tone(row.requestDiff,true)}">${fmtSignedFull(row.requestDiff)}</td><td class="cell-tone ${tone(row.requestMom,true)}">${fmtDelta(row.requestMom)}</td><td>${fmtFull(row.saveJul)}</td><td>${fmtFull(row.saveAug)}</td><td class="cell-tone ${tone(row.saveDiff)}">${fmtSignedFull(row.saveDiff)}</td><td class="cell-tone ${tone(row.saveMom)}">${fmtDelta(row.saveMom)}</td><td>${fmtFull(row.churnJul)}</td><td>${fmtFull(row.churnAug)}</td><td class="cell-tone ${tone(row.churnDiff,true)}">${fmtSignedFull(row.churnDiff)}</td><td class="cell-tone ${tone(row.churnMom,true)}">${fmtDelta(row.churnMom)}</td><td>${fmtPct(row.saveRateJul)}</td><td>${fmtPct(row.saveRateAug)}</td><td class="cell-tone ${tone(row.saveRateDiff)}">${fmtPP(row.saveRateDiff)}</td><td>${fmtFull(row.budget)}</td><td>${fmtFull(row.mtdBudget)}</td><td class="over-budget ${row.overBudget>1?"bad":"good"}">${fmtPct(row.overBudget)}</td><td><span class="tier-pill ${row.tier.code.toLowerCase()}">${row.tier.text}</span></td></tr>`;
+  return `<tr class="${isTotal?"grand-total ":""}${selected?"is-focus":""}"${selected?' aria-current="true"':""}><th class="region-cell" scope="row">${escapeHtml(row.region)}${selected?'<span class="focus-mark">Focus</span>':""}</th><td>${fmtFull(row.requestJul)}</td><td>${fmtFull(row.requestAug)}</td><td class="cell-tone ${tone(row.requestDiff,true)}">${fmtSignedFull(row.requestDiff)}</td><td class="cell-tone ${tone(row.requestMom,true)}">${fmtDelta(row.requestMom)}</td><td>${fmtFull(row.saveJul)}</td><td>${fmtFull(row.saveAug)}</td><td class="cell-tone ${tone(row.saveDiff)}">${fmtSignedFull(row.saveDiff)}</td><td class="cell-tone ${tone(row.saveMom)}">${fmtDelta(row.saveMom)}</td><td>${fmtFull(row.churnJul)}</td><td>${fmtFull(row.churnAug)}</td><td class="cell-tone ${tone(row.churnDiff,true)}">${fmtSignedFull(row.churnDiff)}</td><td class="cell-tone ${tone(row.churnMom,true)}">${fmtDelta(row.churnMom)}</td><td>${fmtPct(row.saveRateJul)}</td><td>${fmtPct(row.saveRateAug)}</td><td class="cell-tone ${tone(row.saveRateDiff)}">${fmtPP(row.saveRateDiff)}</td><td>${fmtFull(row.budget)}</td><td>${fmtFull(row.mtdBudget)}</td><td class="over-budget ${row.overBudget>1?"bad":"good"}">${fmtPct(row.overBudget)}</td><td><span class="tier-pill ${row.tier.code.toLowerCase()}" title="${escapeHtml(row.tier.text)}">${row.tier.code}</span></td></tr>`;
 }
 
 function renderAreaFocusTable(service,group,selectedRegion){
   const data=areaFocusData(service,group,selectedRegion);
   $("focusTableService").textContent=service==="ALL"?"TMH + TOL":service;
+  $("focusTableService").className=`product-badge ${serviceClass(service)}`;
   $("focusTableCount").textContent=`${data.rows.length} ${data.rows.length===1?"Area":"Areas"}`;
   $("focusTableBody").innerHTML=data.rows.length?data.rows.map(row=>focusRowHtml(row,selectedRegion)).join("")+focusRowHtml(data.total,selectedRegion,true):'<tr><td colspan="20" class="empty-state">ไม่มีข้อมูลตามตัวกรอง</td></tr>';
 }
@@ -222,7 +227,7 @@ function branchFocusData(service,group,region){
 }
 
 function branchRowHtml(row){
-  return `<tr><th class="branch-cell" scope="row"><strong>${escapeHtml(row.shop)}</strong><small>${escapeHtml(row.shopType)}</small></th><td class="area-cell">${escapeHtml(row.region)}</td><td>${escapeHtml(row.service)}</td><td>${fmtFull(row.requestJul)}</td><td>${fmtFull(row.requestAug)}</td><td class="cell-tone ${tone(row.requestDiff,true)}">${fmtSignedFull(row.requestDiff)}</td><td class="cell-tone ${tone(row.requestMom,true)}">${fmtDelta(row.requestMom)}</td><td>${fmtFull(row.saveJul)}</td><td>${fmtFull(row.saveAug)}</td><td class="cell-tone ${tone(row.saveDiff)}">${fmtSignedFull(row.saveDiff)}</td><td class="cell-tone ${tone(row.saveMom)}">${fmtDelta(row.saveMom)}</td><td>${fmtFull(row.churnJul)}</td><td>${fmtFull(row.churnAug)}</td><td class="cell-tone ${tone(row.churnDiff,true)}">${fmtSignedFull(row.churnDiff)}</td><td class="cell-tone ${tone(row.churnMom,true)}">${fmtDelta(row.churnMom)}</td><td>${fmtPct(row.saveRateJul)}</td><td>${fmtPct(row.saveRateAug)}</td><td class="cell-tone ${tone(row.saveRateDiff)}">${fmtPP(row.saveRateDiff)}</td><td>${fmtFull(row.budget)}</td><td>${fmtFull(row.mtdBudget)}</td><td class="over-budget ${row.overBudget>1?"bad":"good"}">${fmtPct(row.overBudget)}</td><td><span class="tier-pill ${row.tier.code.toLowerCase()}">${row.tier.text}</span></td></tr>`;
+  return `<tr><th class="branch-cell" scope="row"><strong>${escapeHtml(row.shop)}</strong><small>${escapeHtml(row.shopType)}</small></th><td class="area-cell">${escapeHtml(row.region)}</td><td><span class="service-pill ${serviceClass(row.service)}">${escapeHtml(row.service.replace(" + ","+"))}</span></td><td>${fmtFull(row.requestJul)}</td><td>${fmtFull(row.requestAug)}</td><td class="cell-tone ${tone(row.requestDiff,true)}">${fmtSignedFull(row.requestDiff)}</td><td class="cell-tone ${tone(row.requestMom,true)}">${fmtDelta(row.requestMom)}</td><td>${fmtFull(row.saveJul)}</td><td>${fmtFull(row.saveAug)}</td><td class="cell-tone ${tone(row.saveDiff)}">${fmtSignedFull(row.saveDiff)}</td><td class="cell-tone ${tone(row.saveMom)}">${fmtDelta(row.saveMom)}</td><td>${fmtFull(row.churnJul)}</td><td>${fmtFull(row.churnAug)}</td><td class="cell-tone ${tone(row.churnDiff,true)}">${fmtSignedFull(row.churnDiff)}</td><td class="cell-tone ${tone(row.churnMom,true)}">${fmtDelta(row.churnMom)}</td><td>${fmtPct(row.saveRateJul)}</td><td>${fmtPct(row.saveRateAug)}</td><td class="cell-tone ${tone(row.saveRateDiff)}">${fmtPP(row.saveRateDiff)}</td><td>${fmtFull(row.budget)}</td><td>${fmtFull(row.mtdBudget)}</td><td class="over-budget ${row.overBudget>1?"bad":"good"}">${fmtPct(row.overBudget)}</td><td><span class="tier-pill ${row.tier.code.toLowerCase()}" title="${escapeHtml(row.tier.text)}">${row.tier.code}</span></td></tr>`;
 }
 
 function renderBranchTable(service,group,region){
@@ -232,20 +237,52 @@ function renderBranchTable(service,group,region){
   $("branchTableBody").innerHTML=data.rows.length?data.rows.map(branchRowHtml).join(""):'<tr><td colspan="22" class="empty-state">ไม่มีข้อมูลรายสาขาตามตัวกรอง</td></tr>';
 }
 
+function downsellDetailData(level,group,region){
+  let pool=store.downsellDetails.filter(row=>String(row.Level).toUpperCase()===level&&inScope(row.Region,group,region));
+  const latest=[...new Set(pool.map(row=>row["Report Date"]))].sort().at(-1);
+  pool=pool.filter(row=>row["Report Date"]===latest);
+  const sortRisk=(a,b)=>n(b["RR / Budget"])-n(a["RR / Budget"]);
+  if(level==="AREA") pool.sort((a,b)=>sortRisk(a,b)||String(a.Region).localeCompare(String(b.Region)));
+  else pool.sort((a,b)=>String(a.Region).localeCompare(String(b.Region))||sortRisk(a,b)||String(a["Shop Name"]).localeCompare(String(b["Shop Name"])));
+  return {latest,rows:pool};
+}
+
+const budgetStatus=row=>n(row["RR / Budget"])>1?"over":"safe";
+function downsellAreaRowHtml(row){
+  const state=budgetStatus(row);
+  return `<tr><th class="area-name" scope="row">${escapeHtml(row.Region)}</th><td>${fmtFull(row["No Shop"])}</td><td>${fmtFull(row["Budget Downsell"])}</td><td>${fmtFull(row["Downsell Retention"])}</td><td>${fmtFull(row["Downsell Aftersale"])}</td><td>${fmtFull(row["Total Downsell"])}</td><td>${fmtFull(row["RR Downsell"])}</td><td>${fmtPct(row["MTD / Budget"])}</td><td class="over-budget ${state==="over"?"bad":"good"}">${fmtPct(row["RR / Budget"])}</td><td>${fmtFull(row["Over Budget Records"])}</td><td><span class="budget-pill ${state}">${escapeHtml(row.Status||(state==="over"?"Over Budget":"In Budget"))}</span></td></tr>`;
+}
+
+function downsellBranchRowHtml(row){
+  const state=budgetStatus(row);
+  return `<tr><th class="branch-name" scope="row">${escapeHtml(row["Shop Name"])}</th><td class="area-name">${escapeHtml(row.Region)}</td><td>${escapeHtml(row["Shop Type"])}</td><td>${fmtFull(row["Budget Downsell"])}</td><td>${fmtFull(row["Downsell Retention"])}</td><td>${fmtFull(row["Downsell Aftersale"])}</td><td>${fmtFull(row["Total Downsell"])}</td><td>${fmtFull(row["RR Downsell"])}</td><td>${fmtPct(row["MTD / Budget"])}</td><td class="over-budget ${state==="over"?"bad":"good"}">${fmtPct(row["RR / Budget"])}</td><td><span class="budget-pill ${state}">${escapeHtml(row.Status||(state==="over"?"Over Budget":"In Budget"))}</span></td><td>${row["Last Month"]===""?"—":fmtPct(row["Last Month"])}</td></tr>`;
+}
+
+function renderDownsellTables(group,region){
+  const areas=downsellDetailData("AREA",group,region),branches=downsellDetailData("BRANCH",group,region),scope=scopeLabel(group,region);
+  $("downsellAreaScope").textContent=scope;$("downsellBranchScope").textContent=scope;
+  $("downsellAreaCount").textContent=`${areas.rows.length} ${areas.rows.length===1?"Area":"Areas"}`;
+  $("downsellBranchCount").textContent=`${branches.rows.length} Branches`;
+  $("downsellBranchNotice").textContent=store.downsellDetailLive?`ข้อมูล ณ ${fmtDate(branches.latest||areas.latest)} • แสดงชื่อสาขาเท่านั้น • ซ่อนรหัส TDS/WW • Service filter ไม่มีผลกับ Downsell`:`ไม่สามารถโหลด Downsell รายสาขาได้ กรุณาตรวจสิทธิ์ Google Sheet`;
+  $("downsellAreaTableBody").innerHTML=areas.rows.length?areas.rows.map(downsellAreaRowHtml).join(""):'<tr><td colspan="11" class="empty-state">ไม่มีข้อมูล Downsell ระดับ Area ตามตัวกรอง</td></tr>';
+  $("downsellBranchTableBody").innerHTML=branches.rows.length?branches.rows.map(downsellBranchRowHtml).join(""):'<tr><td colspan="12" class="empty-state">ไม่มีข้อมูล Downsell รายสาขาตามตัวกรอง</td></tr>';
+}
+
 function render(){
   const service=$("serviceFilter").value,group=$("areaGroupFilter").value,region=$("regionFilter").value,data=latestRows(service,group,region),now=aggregatePerformance(data.now),before=aggregatePerformance(data.before);
+  document.documentElement.dataset.service=service.toLowerCase();
   $("performanceDate").textContent=fmtDate(data.latest);renderKpis(now,before);
   $("serviceCards").innerHTML=service==="ALL"?serviceCard("TMH",group,region)+serviceCard("TOL",group,region):serviceCard(service,group,region);
   $("comparisonGrid").innerHTML=comparisonCard("Request",now.request,before.request)+comparisonCard("Save",now.save,before.save)+comparisonCard("Churn",now.churn,before.churn,true);
   const areaPool=store.performance.filter(row=>row["Report Date"]===data.latest&&row.Region!=="ALL"&&(service==="ALL"||row.Service===service)&&inScope(row.Region,group,region)),areas=groupAreas(areaPool);
   bars("saveRateBars",areas,"saveRate",{max:1,sort:"asc",kind:"teal",noteKey:item=>item.saveRate<.88?"ต่ำกว่าเป้าหมาย 88%":"ผ่านเป้าหมาย 88%"});
   bars("runRateBars",areas,"rrCap",{max:Math.max(1.6,...areas.map(item=>item.rrCap)),sort:"desc",kind:"warn",noteKey:item=>item.rrCap>1?`เกิน Cap ${fmtPct(item.rrCap-1)}`:"อยู่ใน Cap"});
-  renderAreaFocusTable(service,group,region);const downsell=renderDownsell(group,region);renderInsights(now,before,areas,downsell);renderBranchTable(service,group,region);
+  renderAreaFocusTable(service,group,region);const downsell=renderDownsell(group,region);renderInsights(now,before,areas,downsell);renderBranchTable(service,group,region);renderDownsellTables(group,region);
 }
 
 function setPartition(partition){
   document.querySelectorAll(".partition-tab").forEach(button=>{const active=button.dataset.partition===partition;button.classList.toggle("is-active",active);button.setAttribute("aria-selected",String(active));});
-  $("overviewPartition").hidden=partition!=="overview";$("branchPartition").hidden=partition!=="branch";
+  $("overviewPartition").hidden=partition!=="overview";$("branchPartition").hidden=partition!=="branch";$("downsellPartition").hidden=partition!=="downsell";
 }
 
 $("serviceFilter").addEventListener("change",render);
@@ -253,5 +290,7 @@ $("areaGroupFilter").addEventListener("change",()=>{populateRegions();render();}
 $("regionFilter").addEventListener("change",render);
 $("refreshButton").addEventListener("click",loadData);
 document.querySelectorAll(".partition-tab").forEach(button=>button.addEventListener("click",()=>setPartition(button.dataset.partition)));
+$("captureModeButton").addEventListener("click",()=>{const active=document.body.classList.toggle("capture-mode");$("captureModeButton").textContent=active?"✕ ออกจากโหมด Capture":"⛶ โหมด Capture";});
 $("sheetLink").href=SHEET_URL;
 loadData();
+

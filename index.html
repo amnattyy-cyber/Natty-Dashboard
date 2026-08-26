@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260826e">
 </head>
 <body>
   <header class="hero">
@@ -60,6 +60,8 @@
     <nav class="partition-tabs" aria-label="เลือกมุมมอง Dashboard">
       <button class="partition-tab is-active" type="button" data-partition="overview" aria-selected="true">ภาพรวม Area</button>
       <button class="partition-tab" type="button" data-partition="branch" aria-selected="false">Branch Performance</button>
+      <button class="partition-tab" type="button" data-partition="downsell" aria-selected="false">Downsell Performance</button>
+      <button class="capture-toggle" id="captureModeButton" type="button">⛶ โหมด Capture</button>
     </nav>
 
     <div id="overviewPartition" class="partition">
@@ -90,7 +92,7 @@
       </div>
     </section>
 
-    <section>
+    <section id="areaFocusSection">
       <div class="section-title"><div><span>04</span><h2>Area focus table</h2></div><p>รายละเอียด July vs August ครบทั้ง 15 พื้นที่</p></div>
       <article class="focus-table-card">
         <div class="focus-table-toolbar">
@@ -101,7 +103,16 @@
           <div class="focus-table-badges"><span id="focusTableService">TMH + TOL</span><span id="focusTableCount">15 Areas</span></div>
         </div>
         <div class="table-scroll" role="region" aria-label="ตารางเปรียบเทียบ Performance รายพื้นที่" tabindex="0">
-          <table class="focus-table">
+          <table class="focus-table performance-table area-performance-table">
+            <colgroup>
+              <col style="width:11%">
+              <col span="4" style="width:4.25%">
+              <col span="4" style="width:4.25%">
+              <col span="4" style="width:4.25%">
+              <col span="3" style="width:4%">
+              <col span="3" style="width:5%">
+              <col style="width:11%">
+            </colgroup>
             <caption>เปรียบเทียบ Revenue Request, Revenue Save, Churn Value และ Save Rate ระหว่าง July และ August</caption>
             <thead>
               <tr>
@@ -157,7 +168,12 @@
             <div class="focus-table-badges"><span id="branchTableScope">ALL</span><span id="branchTableCount">— Branches</span></div>
           </div>
           <div class="table-scroll branch-scroll" role="region" aria-label="ตาราง Performance รายสาขา" tabindex="0">
-            <table class="focus-table branch-table">
+            <table class="focus-table performance-table branch-table">
+              <colgroup>
+                <col style="width:14%"><col style="width:8%"><col style="width:4%">
+                <col span="4" style="width:3.5%"><col span="4" style="width:3.5%"><col span="4" style="width:3.5%">
+                <col span="3" style="width:3.5%"><col span="3" style="width:5%"><col style="width:6.5%">
+              </colgroup>
               <caption>เปรียบเทียบ Revenue Request, Revenue Save, Churn Value และ Save Rate รายสาขาระหว่าง July และ August</caption>
               <thead>
                 <tr>
@@ -186,6 +202,54 @@
         </article>
       </section>
     </div>
+
+    <div id="downsellPartition" class="partition" hidden>
+      <section>
+        <div class="section-title"><div><span>08</span><h2>Downsell performance</h2></div><p>ติดตาม Budget, MTD และ Run rate ระดับ Area และรายสาขา</p></div>
+
+        <article class="focus-table-card downsell-table-card">
+          <div class="focus-table-toolbar">
+            <div>
+              <h3>Performance Downsell by Area</h3>
+              <p>เรียงตาม RR / Budget จากสูงไปต่ำ • ปรับตามกลุ่มพื้นที่และ Area ที่เลือก</p>
+            </div>
+            <div class="focus-table-badges"><span id="downsellAreaScope">ALL</span><span id="downsellAreaCount">— Areas</span></div>
+          </div>
+          <div class="table-scroll downsell-area-scroll" role="region" aria-label="ตาราง Downsell รายพื้นที่" tabindex="0">
+            <table class="focus-table capture-table downsell-area-table">
+              <caption>Performance Downsell ราย Area</caption>
+              <thead><tr>
+                <th scope="col">Area</th><th scope="col">Shops</th><th scope="col">Budget</th><th scope="col">Retention</th>
+                <th scope="col">Aftersale</th><th scope="col">Total MTD</th><th scope="col">RR</th><th scope="col">MTD/Budget</th>
+                <th scope="col">RR/Budget</th><th scope="col">Over Budget</th><th scope="col">Status</th>
+              </tr></thead>
+              <tbody id="downsellAreaTableBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="focus-table-card downsell-table-card">
+          <div class="focus-table-toolbar">
+            <div>
+              <h3>Performance Downsell by Branch</h3>
+              <p id="downsellBranchNotice">แสดงชื่อสาขาเท่านั้น • ซ่อนรหัส TDS/WW • Service filter ไม่มีผลกับข้อมูล Downsell</p>
+            </div>
+            <div class="focus-table-badges"><span id="downsellBranchScope">ALL</span><span id="downsellBranchCount">— Branches</span></div>
+          </div>
+          <div class="table-scroll downsell-branch-scroll" role="region" aria-label="ตาราง Downsell รายสาขา" tabindex="0">
+            <table class="focus-table capture-table downsell-branch-table">
+              <caption>Performance Downsell รายสาขา</caption>
+              <thead><tr>
+                <th scope="col">Branch</th><th scope="col">Area</th><th scope="col">Type</th><th scope="col">Budget</th>
+                <th scope="col">Retention</th><th scope="col">Aftersale</th><th scope="col">Total MTD</th><th scope="col">RR</th>
+                <th scope="col">MTD/Budget</th><th scope="col">RR/Budget</th><th scope="col">Status</th><th scope="col">Last Month</th>
+              </tr></thead>
+              <tbody id="downsellBranchTableBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+    </div>
   </main>
 
   <footer>
@@ -193,6 +257,7 @@
   </footer>
   <noscript>กรุณาเปิด JavaScript เพื่อแสดง dashboard</noscript>
   <script src="fallback-data.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=20260826e"></script>
 </body>
 </html>
+
