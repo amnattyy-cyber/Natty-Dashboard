@@ -42,12 +42,27 @@
       <label>บริการ
         <select id="serviceFilter"><option value="ALL">TMH + TOL</option><option value="TMH">TMH</option><option value="TOL">TOL</option></select>
       </label>
+      <label>กลุ่มพื้นที่
+        <select id="areaGroupFilter">
+          <option value="ALL">ALL</option>
+          <option value="BMA 5 Area">BMA 5 Area</option>
+          <option value="UPC1">UPC1</option>
+          <option value="UPC2">UPC2</option>
+        </select>
+      </label>
       <label>พื้นที่
         <select id="regionFilter"><option value="ALL">ทุกพื้นที่</option></select>
       </label>
       <button id="refreshButton" type="button">↻ อัปเดตข้อมูล</button>
       <a class="sheet-link" id="sheetLink" href="https://docs.google.com/spreadsheets/d/1gw9c97wtVitsn5B8P9ugwavD4xOGf3M_RScNGvk_hNM/edit" target="_blank" rel="noopener">เปิด Google Sheet ↗</a>
     </section>
+
+    <nav class="partition-tabs" aria-label="เลือกมุมมอง Dashboard">
+      <button class="partition-tab is-active" type="button" data-partition="overview" aria-selected="true">ภาพรวม Area</button>
+      <button class="partition-tab" type="button" data-partition="branch" aria-selected="false">Branch Performance</button>
+    </nav>
+
+    <div id="overviewPartition" class="partition">
 
     <section>
       <div class="section-title"><div><span>01</span><h2>Executive snapshot</h2></div><p>ตัวเลขหลักของงวดล่าสุดตามตัวกรอง</p></div>
@@ -128,14 +143,56 @@
       <div class="section-title"><div><span>06</span><h2>Insight to action</h2></div><p>ข้อสังเกตจากข้อมูลสำหรับ daily huddle</p></div>
       <div class="insight-grid" id="insightGrid"></div>
     </section>
+    </div>
+
+    <div id="branchPartition" class="partition" hidden>
+      <section>
+        <div class="section-title"><div><span>07</span><h2>Branch performance</h2></div><p>เจาะผลการดำเนินงานรายสาขาตามกลุ่มและ Area ที่เลือก</p></div>
+        <article class="focus-table-card branch-card">
+          <div class="focus-table-toolbar">
+            <div>
+              <h3>Performance by Branch</h3>
+              <p id="branchDataNotice">แสดงชื่อสาขาเท่านั้น • ซ่อนรหัส TDS/WW • เรียงตามพื้นที่และระดับ Over Budget</p>
+            </div>
+            <div class="focus-table-badges"><span id="branchTableScope">ALL</span><span id="branchTableCount">— Branches</span></div>
+          </div>
+          <div class="table-scroll branch-scroll" role="region" aria-label="ตาราง Performance รายสาขา" tabindex="0">
+            <table class="focus-table branch-table">
+              <caption>เปรียบเทียบ Revenue Request, Revenue Save, Churn Value และ Save Rate รายสาขาระหว่าง July และ August</caption>
+              <thead>
+                <tr>
+                  <th class="group-region" rowspan="2" scope="col">Branch</th>
+                  <th class="group-meta" rowspan="2" scope="col">Area</th>
+                  <th class="group-meta" rowspan="2" scope="col">Service</th>
+                  <th class="group-request" colspan="4" scope="colgroup">Revenue Request</th>
+                  <th class="group-save" colspan="4" scope="colgroup">Revenue Save</th>
+                  <th class="group-churn" colspan="4" scope="colgroup">Churn Value</th>
+                  <th class="group-rate" colspan="3" scope="colgroup">%Save</th>
+                  <th class="group-budget" rowspan="2" scope="col">Budget<br>Churn</th>
+                  <th class="group-budget" rowspan="2" scope="col">MTD Budget<br>Churn</th>
+                  <th class="group-budget" rowspan="2" scope="col">Over<br>Budget</th>
+                  <th class="group-tier" rowspan="2" scope="col">Status Tier</th>
+                </tr>
+                <tr>
+                  <th class="sub-request" scope="col">Jul-26</th><th class="sub-request" scope="col">Aug-26</th><th class="sub-request" scope="col">MoM</th><th class="sub-request" scope="col">%MoM</th>
+                  <th class="sub-save" scope="col">Jul-26</th><th class="sub-save" scope="col">Aug-26</th><th class="sub-save" scope="col">MoM</th><th class="sub-save" scope="col">%MoM</th>
+                  <th class="sub-churn" scope="col">Jul-26</th><th class="sub-churn" scope="col">Aug-26</th><th class="sub-churn" scope="col">MoM</th><th class="sub-churn" scope="col">%MoM</th>
+                  <th class="sub-rate" scope="col">Jul-26</th><th class="sub-rate" scope="col">Aug-26</th><th class="sub-rate" scope="col">MoM</th>
+                </tr>
+              </thead>
+              <tbody id="branchTableBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+    </div>
   </main>
 
   <footer>
-    <div class="shell"><div><strong>Retention Performance Command Center</strong><span>อัปเดตผ่าน Google Sheet • Aggregate by area</span></div><p>ข้อมูลนี้ใช้เพื่อการบริหารผลการดำเนินงานภายใน</p></div>
+    <div class="shell"><div><strong>Retention Performance Command Center</strong><span>อัปเดตผ่าน Google Sheet • Area + Branch (ซ่อน TDS/WW)</span></div><p>ข้อมูลนี้ใช้เพื่อการบริหารผลการดำเนินงานภายใน</p></div>
   </footer>
   <noscript>กรุณาเปิด JavaScript เพื่อแสดง dashboard</noscript>
   <script src="fallback-data.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
-
