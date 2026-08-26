@@ -9,6 +9,7 @@ const n = value => Number(value || 0);
 const sum = (rows, key) => rows.reduce((a,r)=>a+n(r[key]),0);
 const fmtMoney = value => new Intl.NumberFormat("th-TH",{notation:"compact",maximumFractionDigits:2}).format(n(value));
 const fmtFull = value => new Intl.NumberFormat("th-TH",{maximumFractionDigits:0}).format(n(value));
+const fmtSignedFull = value => `${n(value)>0?"+":""}${fmtFull(value)}`;
 const fmtPct = value => `${(n(value)*100).toFixed(1)}%`;
 const fmtPP = value => `${value>=0?"+":""}${(n(value)*100).toFixed(2)} pp`;
 const fmtDelta = value => `${value>=0?"+":""}${(n(value)*100).toFixed(1)}%`;
@@ -96,6 +97,68 @@ function groupAreas(rows){
   rows.forEach(r=>{const key=r.Region;if(!key||key==="ALL")return; const x=map.get(key)||[];x.push(r);map.set(key,x);});
   return [...map].map(([region,items])=>({region,...aggregatePerformance(items)}));
 }
+
+function areaSummary(rows){
+  const request=sum(rows,"Rev Request"), save=sum(rows,"Rev Save"), churn=sum(rows,"Churn Value"), budget=sum(rows,"Budget Churn Month");
+  const mtdBudget=rows.reduce((total,row)=>{
+    const days=n(row["Days in Month"]), cutoff=n(row["Cutoff Day"]);
+    return total+(days?n(row["Budget Churn Month"])*cutoff/days:0);
+  },0);
+  return {request,save,churn,budget,mtdBudget,saveRate:request?save/request:0,overBudget:mtdBudget?churn/mtdBudget:0};
+}
+
+function tierStatus(row){
+  if(row.overBudget<=1&&row.saveRateAug>=.88) return {code:"T1",text:"T1 • In Cap / Save ≥ 88%"};
+  if(row.overBudget>1&&row.saveRateAug>=.88) return {code:"T2",text:"T2 • Over Cap / Save ≥ 88%"};
+  if(row.overBudget>1&&row.saveRateAug<.88) return {code:"T3",text:"T3 • Over Cap / Save < 88%"};
+  return {code:"WATCH",text:"Watch • In Cap / Save < 88%"};
+}
+
+function areaFocusData(service){
+  const pool=store.performance.filter(r=>r.Region&&r.Region!=="ALL"&&(service==="ALL"||r.Service===service));
+  const dates=[...new Set(pool.map(r=>r["Report Date"]))].sort();
+  const latest=dates.at(-1), prior=dates.at(-2);
+  const regions=[...new Set(pool.map(r=>r.Region))].sort();
+  const rows=regions.map(region=>{
+    const jul=areaSummary(pool.filter(r=>r.Region===region&&r["Report Date"]===prior));
+    const aug=areaSummary(pool.filter(r=>r.Region===region&&r["Report Date"]===latest));
+    const row={region,requestJul:jul.request,requestAug:aug.request,saveJul:jul.save,saveAug:aug.save,churnJul:jul.churn,churnAug:aug.churn,saveRateJul:jul.saveRate,saveRateAug:aug.saveRate,budget:aug.budget,mtdBudget:aug.mtdBudget,overBudget:aug.overBudget};
+    row.requestDiff=row.requestAug-row.requestJul; row.requestMom=delta(row.requestAug,row.requestJul);
+    row.saveDiff=row.saveAug-row.saveJul; row.saveMom=delta(row.saveAug,row.saveJul);
+    row.churnDiff=row.churnAug-row.churnJul; row.churnMom=delta(row.churnAug,row.churnJul);
+    row.saveRateDiff=row.saveRateAug-row.saveRateJul; row.tier=tierStatus(row);
+    return row;
+  });
+  const julTotal=areaSummary(pool.filter(r=>r["Report Date"]===prior));
+  const augTotal=areaSummary(pool.filter(r=>r["Report Date"]===latest));
+  const total={region:"Grand Total",requestJul:julTotal.request,requestAug:augTotal.request,saveJul:julTotal.save,saveAug:augTotal.save,churnJul:julTotal.churn,churnAug:augTotal.churn,saveRateJul:julTotal.saveRate,saveRateAug:augTotal.saveRate,budget:augTotal.budget,mtdBudget:augTotal.mtdBudget,overBudget:augTotal.overBudget};
+  total.requestDiff=total.requestAug-total.requestJul; total.requestMom=delta(total.requestAug,total.requestJul);
+  total.saveDiff=total.saveAug-total.saveJul; total.saveMom=delta(total.saveAug,total.saveJul);
+  total.churnDiff=total.churnAug-total.churnJul; total.churnMom=delta(total.churnAug,total.churnJul);
+  total.saveRateDiff=total.saveRateAug-total.saveRateJul; total.tier=tierStatus(total);
+  return {rows,total,latest,prior};
+}
+
+function tone(value,inverse=false){return deltaClass(value,inverse);}
+function focusRowHtml(row,selectedRegion,isTotal=false){
+  const selected=!isTotal&&selectedRegion!=="ALL"&&row.region===selectedRegion;
+  return `<tr class="${isTotal?"grand-total ":""}${selected?"is-focus":""}"${selected?' aria-current="true"':""}>
+    <th class="region-cell" scope="row">${row.region}${selected?'<span class="focus-mark">Focus</span>':""}</th>
+    <td>${fmtFull(row.requestJul)}</td><td>${fmtFull(row.requestAug)}</td><td class="cell-tone ${tone(row.requestDiff,true)}">${fmtSignedFull(row.requestDiff)}</td><td class="cell-tone ${tone(row.requestMom,true)}">${fmtDelta(row.requestMom)}</td>
+    <td>${fmtFull(row.saveJul)}</td><td>${fmtFull(row.saveAug)}</td><td class="cell-tone ${tone(row.saveDiff)}">${fmtSignedFull(row.saveDiff)}</td><td class="cell-tone ${tone(row.saveMom)}">${fmtDelta(row.saveMom)}</td>
+    <td>${fmtFull(row.churnJul)}</td><td>${fmtFull(row.churnAug)}</td><td class="cell-tone ${tone(row.churnDiff,true)}">${fmtSignedFull(row.churnDiff)}</td><td class="cell-tone ${tone(row.churnMom,true)}">${fmtDelta(row.churnMom)}</td>
+    <td>${fmtPct(row.saveRateJul)}</td><td>${fmtPct(row.saveRateAug)}</td><td class="cell-tone ${tone(row.saveRateDiff)}">${fmtPP(row.saveRateDiff)}</td>
+    <td>${fmtFull(row.budget)}</td><td>${fmtFull(row.mtdBudget)}</td><td class="over-budget ${row.overBudget>1?"bad":"good"}">${fmtPct(row.overBudget)}</td>
+    <td><span class="tier-pill ${row.tier.code.toLowerCase()}">${row.tier.text}</span></td>
+  </tr>`;
+}
+
+function renderAreaFocusTable(service,selectedRegion){
+  const data=areaFocusData(service);
+  $("focusTableService").textContent=service==="ALL"?"TMH + TOL":service;
+  $("focusTableCount").textContent=`${data.rows.length} Areas`;
+  $("focusTableBody").innerHTML=data.rows.map(row=>focusRowHtml(row,selectedRegion)).join("")+focusRowHtml(data.total,selectedRegion,true);
+}
 function bars(target,rows,key,{max,sort="desc",kind="teal",suffix="%",noteKey}={}){
   const sorted=[...rows].sort((a,b)=>sort==="asc"?a[key]-b[key]:b[key]-a[key]).slice(0,6);
   const ceiling=max||Math.max(...sorted.map(x=>x[key]),1);
@@ -143,6 +206,7 @@ function render(){
   const areas=groupAreas(areaPool);
   bars("saveRateBars",areas,"saveRate",{max:1,sort:"asc",kind:"teal",noteKey:x=>x.saveRate<.88?"ต่ำกว่าเป้าหมาย 88%":"ผ่านเป้าหมาย 88%"});
   bars("runRateBars",areas,"rrCap",{max:Math.max(1.6,...areas.map(x=>x.rrCap)),sort:"desc",kind:"warn",noteKey:x=>x.rrCap>1?`เกิน Cap ${fmtPct(x.rrCap-1)}`:"อยู่ใน Cap"});
+  renderAreaFocusTable(service,region);
   const down=renderDownsell(region);
   renderInsights(now,before,areas,down);
 }
