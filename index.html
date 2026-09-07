@@ -61,6 +61,7 @@
       <button class="partition-tab is-active" type="button" data-partition="overview" aria-selected="true">ภาพรวม Area</button>
       <button class="partition-tab" type="button" data-partition="branch" aria-selected="false">Branch Performance</button>
       <button class="partition-tab" type="button" data-partition="downsell" aria-selected="false">Downsell Performance</button>
+      <button class="partition-tab" type="button" data-partition="solution" aria-selected="false">Solution Analysis</button>
       <button class="capture-toggle" id="captureModeButton" type="button">⛶ โหมด Capture</button>
     </nav>
 
@@ -250,6 +251,53 @@
         </article>
       </section>
     </div>
+
+    <div id="solutionPartition" class="partition" hidden>
+      <section>
+        <div class="section-title"><div><span>09</span><h2>Cancellation solution analysis</h2></div><p>สาเหตุการยกเลิกจาก Solution Name แยก TMH และ TOL</p></div>
+        <div class="solution-controls">
+          <div><strong>มุมมอง Solution</strong><small id="solutionDataNotice">กำลังโหลดข้อมูล...</small></div>
+          <label>สาขา
+            <select id="solutionBranchFilter"><option value="ALL">ทุกสาขา</option></select>
+          </label>
+          <label>จัดอันดับด้วย
+            <select id="solutionMetricFilter"><option value="cases">Request Sub</option><option value="churn">Churn Value</option><option value="request">Revenue Request</option></select>
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-title"><div><span>10</span><h2>Highest solution by product</h2></div><p id="solutionLeaderScope">ALL • 15 Areas</p></div>
+        <div class="solution-leaders" id="solutionLeaders"></div>
+      </section>
+
+      <section>
+        <div class="section-title"><div><span>11</span><h2>TMH vs TOL solution comparison</h2></div><p id="solutionComparisonScope">ทุกกลุ่มพื้นที่</p></div>
+        <div class="solution-comparison-grid" id="solutionComparisonTables"></div>
+      </section>
+
+      <section>
+        <div class="section-title"><div><span>12</span><h2>Top 10 solutions across 15 Areas</h2></div><p>เรียงอันดับภายในแต่ละ Area ตามตัวชี้วัดที่เลือก</p></div>
+        <div id="solutionAreaMatrices"></div>
+      </section>
+
+      <section>
+        <div class="section-title"><div><span>13</span><h2>Solution by branch</h2></div><p>เจาะสาเหตุอันดับ 1 ราย Area และรายสาขา</p></div>
+        <article class="focus-table-card solution-branch-card">
+          <div class="focus-table-toolbar">
+            <div><h3 id="solutionBranchScope">ALL • 15 Areas</h3><p>คลิกสาขาเพื่อเลือกดู Solution ของสาขานั้น</p></div>
+            <div class="focus-table-badges"><span id="solutionBranchCount">— Branches</span></div>
+          </div>
+          <div class="table-scroll solution-branch-scroll" role="region" aria-label="ตาราง Solution รายสาขา" tabindex="0">
+            <table class="focus-table capture-table solution-branch-table">
+              <caption>Solution อันดับหนึ่งรายสาขา แยกตาม Product</caption>
+              <thead><tr><th scope="col">Product</th><th scope="col">Branch</th><th scope="col">Area</th><th scope="col">Top Solution</th><th scope="col">Request Sub</th><th scope="col">Contribution</th><th scope="col">Rev Request</th><th scope="col">%Save Revenue</th></tr></thead>
+              <tbody id="solutionBranchTableBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+    </div>
   </main>
 
   <footer>
@@ -257,7 +305,8 @@
   </footer>
   <noscript>กรุณาเปิด JavaScript เพื่อแสดง dashboard</noscript>
   <script src="fallback-data.js"></script>
-  <script src="app.js?v=20260826e"></script>
+  <script src="solution-prototype-data.js"></script>
+  <script src="app.js?v=20260907a"></script>
 </body>
 </html>
 
