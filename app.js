@@ -4,12 +4,13 @@ const PERF_HEADERS = ["Report Date","Service","Region","No Shop","Rev Request","
 const DOWN_HEADERS = ["Report Date","Region","No Shop","Budget Downsell","Downsell Retention","Downsell Aftersale","Cutoff Day","Days in Month","Total Downsell","RR Downsell","MTD / Budget","RR / Budget","Over Budget Records","Status"];
 const BRANCH_HEADERS = ["Report Date","Service","Area Group","Region","Shop Name","Shop Type","Request Jul","Request Aug","Request MoM","Request %MoM","Save Jul","Save Aug","Save MoM","Save %MoM","Churn Jul","Churn Aug","Churn MoM","Churn %MoM","Save Rate Jul","Save Rate Aug","Save Rate MoM","Budget Churn","MTD Budget Churn","Over Budget","Tier","Cutoff Day","Days in Month"];
 const DOWNSELL_DETAIL_HEADERS = ["Report Date","Level","Area Group","Region","Shop Name","Shop Type","No Shop","Budget Downsell","Downsell Retention","Downsell Aftersale","Total Downsell","RR Downsell","MTD / Budget","RR / Budget","Over Budget Records","Status","Last Month","Cutoff Day","Days in Month"];
+const SOLUTION_HEADERS = ["Report Date","Product","Area Group","Region","Shop Name","Solution Name","Request Sub","Rev Request","Rev Save","Churn Value","Cutoff Day","Days in Month"];
 const AREA_GROUPS = {
   "BMA 5 Area": ["BMA I - North West","BMA II - South West","BMA III - North East","BMA IV - South East","BMA V - Central"],
   UPC1: ["UPC - Central Northeast","UPC - Lower North","UPC - Lower Northeast","UPC - Upper North","UPC - Upper Northeast"],
   UPC2: ["UPC - Central","UPC - East","UPC - Upper South","UPC - West","UPC - Lower South"]
 };
-let store = { performance: [], downsell: [], branches: [], downsellDetails: [], live: false, branchLive: false, downsellDetailLive: false };
+let store = { performance: [], downsell: [], branches: [], downsellDetails: [], solutions: [], live: false, branchLive: false, downsellDetailLive: false, solutionLive: false };
 let comparisonMonths = { before: "July", now: "August" };
 const periodTemplates = new Map();
 
@@ -82,12 +83,24 @@ function loadGviz(sheet){
   });
 }
 
+function areaGroupFor(region){
+  return Object.entries(AREA_GROUPS).find(([,areas])=>areas.includes(region))?.[0]||"";
+}
+
+function solutionFallbackRows(){
+  const products=window.SOLUTION_ANALYSIS?.products||{};
+  return Object.entries(products).flatMap(([product,data])=>(data.areas||[]).flatMap(area=>(area.branches||[]).flatMap(branch=>(branch.solutions||[]).map(solution=>({
+    "Report Date":"2026-09-05",Product:product,"Area Group":areaGroupFor(area.area),Region:area.area,"Shop Name":branch.branch,
+    "Solution Name":solution.solution,"Request Sub":solution.cases,"Rev Request":solution.request,"Rev Save":solution.save,"Churn Value":solution.churn,"Cutoff Day":5,"Days in Month":30
+  })))));
+}
+
 async function loadData(){
   const status=$("dataStatus");
   status.className="status-pill";
   status.innerHTML="<span></span>กำลังโหลดข้อมูล...";
-  const [performance,downsell,branches,downsellDetails]=await Promise.allSettled([
-    loadGviz("Performance_Daily"),loadGviz("Downsell_Area_Daily"),loadGviz("Branch_Performance_Daily"),loadGviz("Downsell_Performance_Daily")
+  const [performance,downsell,branches,downsellDetails,solutions]=await Promise.allSettled([
+    loadGviz("Performance_Daily"),loadGviz("Downsell_Area_Daily"),loadGviz("Branch_Performance_Daily"),loadGviz("Downsell_Performance_Daily"),loadGviz("Solution_Performance_Daily")
   ]);
   const coreLive=performance.status==="fulfilled"&&downsell.status==="fulfilled";
   store={
@@ -95,19 +108,21 @@ async function loadData(){
     downsell:coreLive?rowObjects(downsell.value,DOWN_HEADERS):rowObjects(window.RETENTION_FALLBACK.downsell,DOWN_HEADERS),
     branches:branches.status==="fulfilled"?rowObjects(branches.value,BRANCH_HEADERS):[],
     downsellDetails:downsellDetails.status==="fulfilled"?rowObjects(downsellDetails.value,DOWNSELL_DETAIL_HEADERS):[],
+    solutions:solutions.status==="fulfilled"?rowObjects(solutions.value,SOLUTION_HEADERS):solutionFallbackRows(),
     live:coreLive,
     branchLive:branches.status==="fulfilled",
-    downsellDetailLive:downsellDetails.status==="fulfilled"
+    downsellDetailLive:downsellDetails.status==="fulfilled",
+    solutionLive:solutions.status==="fulfilled"
   };
-  if(coreLive&&store.branchLive&&store.downsellDetailLive){status.className="status-pill live";status.innerHTML="<span></span>Live from Google Sheet";}
-  else if(coreLive){status.className="status-pill fallback";status.innerHTML="<span></span>Live • รอข้อมูลรายสาขา";}
+  if(coreLive&&store.branchLive&&store.downsellDetailLive&&store.solutionLive){status.className="status-pill live";status.innerHTML="<span></span>Live from Google Sheet";}
+  else if(coreLive){status.className="status-pill fallback";status.innerHTML="<span></span>Live • บางตารางใช้ข้อมูลสำรอง";}
   else{status.className="status-pill fallback";status.innerHTML="<span></span>Snapshot • รอสิทธิ์ Google Sheet";}
   populateRegions();render();
 }
 
 function populateRegions(){
   const select=$("regionFilter"),group=$("areaGroupFilter").value,current=select.value;
-  const regions=[...new Set([...store.performance.map(row=>row.Region),...store.downsell.map(row=>row.Region),...store.branches.map(row=>row.Region),...store.downsellDetails.map(row=>row.Region)].filter(region=>region&&region!=="ALL"&&(group==="ALL"||AREA_GROUPS[group]?.includes(region))))].sort();
+  const regions=[...new Set([...store.performance.map(row=>row.Region),...store.downsell.map(row=>row.Region),...store.branches.map(row=>row.Region),...store.downsellDetails.map(row=>row.Region),...store.solutions.map(row=>row.Region)].filter(region=>region&&region!=="ALL"&&(group==="ALL"||AREA_GROUPS[group]?.includes(region))))].sort();
   select.innerHTML='<option value="ALL">ทุกพื้นที่ในกลุ่ม</option>'+regions.map(region=>`<option value="${escapeHtml(region)}">${escapeHtml(region)}</option>`).join("");
   select.value=regions.includes(current)?current:"ALL";
 }
@@ -286,6 +301,87 @@ function renderDownsellTables(group,region){
   $("downsellBranchTableBody").innerHTML=branches.rows.length?branches.rows.map(downsellBranchRowHtml).join(""):'<tr><td colspan="12" class="empty-state">ไม่มีข้อมูล Downsell รายสาขาตามตัวกรอง</td></tr>';
 }
 
+const solutionMetricLabels={cases:"Request Sub",churn:"Churn Value",request:"Revenue Request"};
+const solutionMetricValue=(item,metric)=>metric==="cases"?item.cases:item[metric];
+const solutionMetricText=(item,metric)=>metric==="cases"?fmtFull(item.cases):fmtMoney(item[metric]);
+const isMissingSolution=value=>!String(value||"").trim()||String(value).trim()==="ไม่ระบุ Solution";
+
+function latestSolutionRows(){
+  const latest=[...new Set(store.solutions.map(row=>row["Report Date"]).filter(Boolean))].sort().at(-1);
+  return {latest,rows:store.solutions.filter(row=>row["Report Date"]===latest)};
+}
+
+function solutionScopeRows(product,group,region,branch="ALL"){
+  return latestSolutionRows().rows.filter(row=>(product==="ALL"||row.Product===product)&&inScope(row.Region,group,region)&&(branch==="ALL"||row["Shop Name"]===branch));
+}
+
+function aggregateSolutions(rows){
+  const grouped=new Map();
+  rows.forEach(row=>{
+    const name=String(row["Solution Name"]||"").trim()||"ไม่ระบุ Solution",item=grouped.get(name)||{solution:name,cases:0,request:0,save:0,churn:0};
+    item.cases+=n(row["Request Sub"]);item.request+=n(row["Rev Request"]);item.save+=n(row["Rev Save"]);item.churn+=n(row["Churn Value"]);grouped.set(name,item);
+  });
+  return [...grouped.values()];
+}
+
+function rankedSolutions(items,metric){
+  return [...items].filter(item=>!isMissingSolution(item.solution)).sort((a,b)=>solutionMetricValue(b,metric)-solutionMetricValue(a,metric)||b.cases-a.cases||a.solution.localeCompare(b.solution,"th"));
+}
+
+function solutionProducts(service){return service==="ALL"?["TMH","TOL"]:[service];}
+
+function populateSolutionBranches(){
+  const select=$("solutionBranchFilter"),service=$("serviceFilter").value,group=$("areaGroupFilter").value,region=$("regionFilter").value,current=select.value;
+  const branches=[...new Set(solutionScopeRows(service,group,region).map(row=>row["Shop Name"]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"th"));
+  select.innerHTML='<option value="ALL">ทุกสาขา</option>'+branches.map(branch=>`<option value="${escapeHtml(branch)}">${escapeHtml(branch)}</option>`).join("");
+  select.value=branches.includes(current)?current:"ALL";
+}
+
+function solutionComparisonCard(product,rows,metric){
+  const items=aggregateSolutions(rows),ranked=rankedSolutions(items,metric).slice(0,10),totalCases=items.reduce((total,item)=>total+item.cases,0),totalRequest=items.reduce((total,item)=>total+item.request,0),totalSave=items.reduce((total,item)=>total+item.save,0);
+  const body=ranked.length?ranked.map(item=>`<tr><th scope="row" title="${escapeHtml(item.solution)}">${escapeHtml(item.solution)}</th><td>${fmtFull(item.cases)}</td><td>${fmtFull(item.request)}</td><td>${fmtFull(item.cases?item.request/item.cases:0)}</td><td>${fmtPct(totalRequest?item.request/totalRequest:0)}</td><td>${fmtPct(item.request?item.save/item.request:0)}</td></tr>`).join(""):'<tr><td colspan="6" class="empty-state">ไม่มีข้อมูลในขอบเขตนี้</td></tr>';
+  return `<article class="solution-comparison-card ${product.toLowerCase()}"><div class="solution-comparison-head"><h3>${product}</h3><span>Top 10 by ${solutionMetricLabels[metric]}</span></div><div class="table-scroll solution-comparison-scroll"><table class="solution-comparison-table"><thead><tr><th>SOLUTION NAME</th><th>Request Sub</th><th>Rev Request</th><th>ARPU/Sub</th><th>Contribution</th><th>%Save Revenue</th></tr></thead><tbody>${body}</tbody><tfoot><tr><th>ผลรวม</th><td>${fmtFull(totalCases)}</td><td>${fmtFull(totalRequest)}</td><td>${fmtFull(totalCases?totalRequest/totalCases:0)}</td><td>${fmtPct(totalRequest?1:0)}</td><td>${fmtPct(totalRequest?totalSave/totalRequest:0)}</td></tr></tfoot></table></div></article>`;
+}
+
+function renderSolutionLeaders(products,group,region,branch,metric){
+  $("solutionLeaders").innerHTML=products.map(product=>{
+    const rows=solutionScopeRows(product,group,region,branch),items=aggregateSolutions(rows),top=rankedSolutions(items,metric)[0],validCases=items.filter(item=>!isMissingSolution(item.solution)).reduce((total,item)=>total+item.cases,0);
+    if(!top)return `<article class="solution-leader-card ${product.toLowerCase()}"><div class="solution-leader-head"><span>${product}</span><small>ไม่มีข้อมูล</small></div></article>`;
+    return `<article class="solution-leader-card ${product.toLowerCase()}"><div class="solution-leader-head"><span>${product}</span><small>อันดับ 1 • ${solutionMetricLabels[metric]}</small></div><h3>${escapeHtml(top.solution)}</h3><div class="solution-leader-metrics"><div><small>Request Sub</small><strong>${fmtFull(top.cases)}</strong></div><div><small>สัดส่วนเคส</small><strong>${fmtPct(validCases?top.cases/validCases:0)}</strong></div><div><small>Churn Value</small><strong>${fmtMoney(top.churn)}</strong></div></div></article>`;
+  }).join("");
+}
+
+function renderSolutionMatrices(products,group,region,metric,branch){
+  const areas=(group==="ALL"?Object.values(AREA_GROUPS).flat():AREA_GROUPS[group]||[]).filter(area=>region==="ALL"||area===region);
+  $("solutionAreaMatrices").innerHTML=products.map(product=>{
+    const body=areas.map(area=>{
+      const top=rankedSolutions(aggregateSolutions(solutionScopeRows(product,group,area,branch)),metric).slice(0,10);
+      return `<tr data-solution-area="${escapeHtml(area)}"><th scope="row">${escapeHtml(area)}</th>${Array.from({length:10},(_,index)=>{const item=top[index];return item?`<td class="solution-rank-cell ${index===0?"is-first":""}" title="${escapeHtml(item.solution)}"><strong>${escapeHtml(item.solution)}</strong><span>${solutionMetricText(item,metric)}</span></td>`:'<td class="solution-rank-cell">—</td>'}).join("")}</tr>`;
+    }).join("")||'<tr><td colspan="11" class="empty-state">ไม่มีข้อมูลในขอบเขตนี้</td></tr>';
+    return `<article class="solution-matrix-card ${product.toLowerCase()}"><div class="solution-matrix-head"><h3>${product}</h3><span>${areas.length} Areas • Top 10 by ${solutionMetricLabels[metric]}</span></div><div class="table-scroll solution-matrix-scroll"><table class="solution-matrix"><thead><tr><th>AREA</th>${Array.from({length:10},(_,index)=>`<th>#${index+1}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div></article>`;
+  }).join("");
+  document.querySelectorAll("[data-solution-area]").forEach(row=>row.addEventListener("click",()=>{$("regionFilter").value=row.dataset.solutionArea;populateSolutionBranches();render();document.querySelector(".solution-branch-card").scrollIntoView({behavior:"smooth",block:"start"});}));
+}
+
+function renderSolutionBranches(products,group,region,metric){
+  const rows=solutionScopeRows("ALL",group,region),grouped=new Map();
+  rows.filter(row=>products.includes(row.Product)&&row["Shop Name"]).forEach(row=>{const key=`${row.Product}|${row.Region}|${row["Shop Name"]}`,items=grouped.get(key)||[];items.push(row);grouped.set(key,items);});
+  const branches=[...grouped.values()].map(items=>{const product=items[0].Product,area=items[0].Region,branch=items[0]["Shop Name"],solutions=aggregateSolutions(items),top=rankedSolutions(solutions,metric)[0],totalRequest=solutions.reduce((total,item)=>total+item.request,0);return {product,area,branch,top,totalRequest};}).filter(item=>item.top).sort((a,b)=>a.area.localeCompare(b.area)||a.product.localeCompare(b.product)||solutionMetricValue(b.top,metric)-solutionMetricValue(a.top,metric)||a.branch.localeCompare(b.branch,"th"));
+  $("solutionBranchScope").textContent=scopeLabel(group,region);$("solutionBranchCount").textContent=`${branches.length} Branches`;
+  $("solutionBranchTableBody").innerHTML=branches.length?branches.map(item=>`<tr data-solution-branch="${escapeHtml(item.branch)}" data-solution-area="${escapeHtml(item.area)}"><td><span class="service-pill ${item.product.toLowerCase()}">${item.product}</span></td><th scope="row">${escapeHtml(item.branch)}</th><td>${escapeHtml(item.area)}</td><td>${escapeHtml(item.top.solution)}</td><td>${fmtFull(item.top.cases)}</td><td>${fmtPct(item.totalRequest?item.top.request/item.totalRequest:0)}</td><td>${fmtFull(item.top.request)}</td><td>${fmtPct(item.top.request?item.top.save/item.top.request:0)}</td></tr>`).join(""):'<tr><td colspan="8" class="empty-state">ไม่มีข้อมูลรายสาขาตามตัวกรอง</td></tr>';
+  document.querySelectorAll("[data-solution-branch]").forEach(row=>row.addEventListener("click",()=>{$("regionFilter").value=row.dataset.solutionArea;populateSolutionBranches();$("solutionBranchFilter").value=row.dataset.solutionBranch;renderSolutions();document.querySelector("#solutionPartition section:nth-child(2)").scrollIntoView({behavior:"smooth",block:"start"});}));
+}
+
+function renderSolutions(){
+  populateSolutionBranches();
+  const service=$("serviceFilter").value,products=solutionProducts(service),group=$("areaGroupFilter").value,region=$("regionFilter").value,branch=$("solutionBranchFilter").value,metric=$("solutionMetricFilter").value,{latest}=latestSolutionRows(),scope=[scopeLabel(group,region),branch!=="ALL"?branch:null].filter(Boolean).join(" • ");
+  $("solutionDataNotice").textContent=`ข้อมูล ณ ${fmtDate(latest)} • ${store.solutionLive?"Live from Google Sheet":"ใช้ Snapshot สำรอง"}`;
+  $("solutionLeaderScope").textContent=scope;$("solutionComparisonScope").textContent=scope;
+  renderSolutionLeaders(products,group,region,branch,metric);
+  $("solutionComparisonTables").innerHTML=products.map(product=>solutionComparisonCard(product,solutionScopeRows(product,group,region,branch),metric)).join("");
+  renderSolutionMatrices(products,group,region,metric,branch);renderSolutionBranches(products,group,region,metric);
+}
+
 function render(){
   const service=$("serviceFilter").value,group=$("areaGroupFilter").value,region=$("regionFilter").value,data=latestRows(service,group,region),now=aggregatePerformance(data.now),before=aggregatePerformance(data.before);
   renderPeriodLabels(data.prior,data.latest);
@@ -296,17 +392,19 @@ function render(){
   const areaPool=store.performance.filter(row=>row["Report Date"]===data.latest&&row.Region!=="ALL"&&(service==="ALL"||row.Service===service)&&inScope(row.Region,group,region)),areas=groupAreas(areaPool);
   bars("saveRateBars",areas,"saveRate",{max:1,sort:"asc",kind:"teal",noteKey:item=>item.saveRate<.88?"ต่ำกว่าเป้าหมาย 88%":"ผ่านเป้าหมาย 88%"});
   bars("runRateBars",areas,"rrCap",{max:Math.max(1.6,...areas.map(item=>item.rrCap)),sort:"desc",kind:"warn",noteKey:item=>item.rrCap>1?`เกิน Cap ${fmtPct(item.rrCap-1)}`:"อยู่ใน Cap"});
-  renderAreaFocusTable(service,group,region);const downsell=renderDownsell(group,region);renderInsights(now,before,areas,downsell);renderBranchTable(service,group,region);renderDownsellTables(group,region);
+  renderAreaFocusTable(service,group,region);const downsell=renderDownsell(group,region);renderInsights(now,before,areas,downsell);renderBranchTable(service,group,region);renderDownsellTables(group,region);renderSolutions();
 }
 
 function setPartition(partition){
   document.querySelectorAll(".partition-tab").forEach(button=>{const active=button.dataset.partition===partition;button.classList.toggle("is-active",active);button.setAttribute("aria-selected",String(active));});
-  $("overviewPartition").hidden=partition!=="overview";$("branchPartition").hidden=partition!=="branch";$("downsellPartition").hidden=partition!=="downsell";
+  $("overviewPartition").hidden=partition!=="overview";$("branchPartition").hidden=partition!=="branch";$("downsellPartition").hidden=partition!=="downsell";$("solutionPartition").hidden=partition!=="solution";
 }
 
 $("serviceFilter").addEventListener("change",render);
 $("areaGroupFilter").addEventListener("change",()=>{populateRegions();render();});
 $("regionFilter").addEventListener("change",render);
+$("solutionBranchFilter").addEventListener("change",renderSolutions);
+$("solutionMetricFilter").addEventListener("change",renderSolutions);
 $("refreshButton").addEventListener("click",loadData);
 document.querySelectorAll(".partition-tab").forEach(button=>button.addEventListener("click",()=>setPartition(button.dataset.partition)));
 $("captureModeButton").addEventListener("click",()=>{const active=document.body.classList.toggle("capture-mode");$("captureModeButton").textContent=active?"✕ ออกจากโหมด Capture":"⛶ โหมด Capture";});
