@@ -10,6 +10,23 @@ const AREA_GROUPS = {
   UPC2: ["UPC - Central","UPC - East","UPC - Upper South","UPC - West","UPC - Lower South"]
 };
 let store = { performance: [], downsell: [], branches: [], downsellDetails: [], live: false, branchLive: false, downsellDetailLive: false };
+let comparisonMonths = { before: "July", now: "August" };
+const periodTemplates = new Map();
+
+function renderPeriodLabels(prior, latest){
+  const month=(value,short=false)=>{
+    const date=new Date(`${dateKey(value)}T00:00:00`);
+    if(isNaN(date)) return "—";
+    return short ? `${date.toLocaleDateString("en-US",{month:"short"})}-${String(date.getFullYear()).slice(-2)}` : date.toLocaleDateString("en-US",{month:"long"});
+  };
+  comparisonMonths={before:month(prior),now:month(latest)};
+  document.querySelectorAll("h2,p,caption,th").forEach(element=>{
+    if(!periodTemplates.has(element) && /July|August|Jul-26|Aug-26/.test(element.textContent)) periodTemplates.set(element,element.textContent);
+  });
+  periodTemplates.forEach((template,element)=>{
+    element.textContent=template.replace(/Jul-26/g,month(prior,true)).replace(/Aug-26/g,month(latest,true)).replace(/July/g,comparisonMonths.before).replace(/August/g,comparisonMonths.now);
+  });
+}
 
 const $ = id => document.getElementById(id);
 const n = value => Number(value || 0);
@@ -126,7 +143,7 @@ function serviceCard(service,group,region){
 
 function comparisonCard(label,now,before,inverse=false){
   const maximum=Math.max(now,before)||1,difference=delta(now,before);
-  return `<article class="comparison-card"><div class="comparison-card__head"><h3>${label}</h3><span class="delta ${deltaClass(difference,inverse)}">${fmtDelta(difference)}</span></div><div class="comparison-chart"><div class="month-col"><strong>${fmtMoney(before)}</strong><div class="month-bar" style="height:${Math.max(5,before/maximum*100)}%"></div><small>July</small></div><div class="month-col aug"><strong>${fmtMoney(now)}</strong><div class="month-bar" style="height:${Math.max(5,now/maximum*100)}%"></div><small>August</small></div></div><div class="comparison-note">${inverse?(difference<=0?"แนวโน้มดีขึ้น: ลดลงจากเดือนก่อน":"ควบคุมเพิ่ม: สูงขึ้นจากเดือนก่อน"):(difference>=0?"เติบโตจากเดือนก่อน":"ลดลงจากเดือนก่อน")}</div></article>`;
+  return `<article class="comparison-card"><div class="comparison-card__head"><h3>${label}</h3><span class="delta ${deltaClass(difference,inverse)}">${fmtDelta(difference)}</span></div><div class="comparison-chart"><div class="month-col"><strong>${fmtMoney(before)}</strong><div class="month-bar" style="height:${Math.max(5,before/maximum*100)}%"></div><small>${comparisonMonths.before}</small></div><div class="month-col aug"><strong>${fmtMoney(now)}</strong><div class="month-bar" style="height:${Math.max(5,now/maximum*100)}%"></div><small>${comparisonMonths.now}</small></div></div><div class="comparison-note">${inverse?(difference<=0?"แนวโน้มดีขึ้น: ลดลงจากเดือนก่อน":"ควบคุมเพิ่ม: สูงขึ้นจากเดือนก่อน"):(difference>=0?"เติบโตจากเดือนก่อน":"ลดลงจากเดือนก่อน")}</div></article>`;
 }
 
 function groupAreas(rows){
@@ -270,6 +287,7 @@ function renderDownsellTables(group,region){
 
 function render(){
   const service=$("serviceFilter").value,group=$("areaGroupFilter").value,region=$("regionFilter").value,data=latestRows(service,group,region),now=aggregatePerformance(data.now),before=aggregatePerformance(data.before);
+  renderPeriodLabels(data.prior,data.latest);
   document.documentElement.dataset.service=service.toLowerCase();
   $("performanceDate").textContent=fmtDate(data.latest);renderKpis(now,before);
   $("serviceCards").innerHTML=service==="ALL"?serviceCard("TMH",group,region)+serviceCard("TOL",group,region):serviceCard(service,group,region);
