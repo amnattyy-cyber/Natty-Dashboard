@@ -24,7 +24,8 @@ function renderPeriodLabels(prior, latest){
     if(!periodTemplates.has(element) && /July|August|Jul-26|Aug-26/.test(element.textContent)) periodTemplates.set(element,element.textContent);
   });
   periodTemplates.forEach((template,element)=>{
-    element.textContent=template.replace(/Jul-26/g,month(prior,true)).replace(/Aug-26/g,month(latest,true)).replace(/July/g,comparisonMonths.before).replace(/August/g,comparisonMonths.now);
+    const labels={"Jul-26":month(prior,true),"Aug-26":month(latest,true),July:comparisonMonths.before,August:comparisonMonths.now};
+    element.textContent=template.replace(/Jul-26|Aug-26|July|August/g,key=>labels[key]);
   });
 }
 
