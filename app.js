@@ -375,7 +375,7 @@ function renderSolutionBranches(products,group,region,metric){
 function renderSolutions(){
   populateSolutionBranches();
   const service=$("serviceFilter").value,products=solutionProducts(service),group=$("areaGroupFilter").value,region=$("regionFilter").value,branch=$("solutionBranchFilter").value,metric=$("solutionMetricFilter").value,{latest}=latestSolutionRows(),scope=[scopeLabel(group,region),branch!=="ALL"?branch:null].filter(Boolean).join(" • ");
-  $("solutionDataNotice").textContent=`ข้อมูล ณ ${fmtDate(latest)} • ${store.solutionLive?"Live from Google Sheet":"ใช้ Snapshot สำรอง"}`;
+  $("solutionDataNotice").textContent=store.solutionLive?`ข้อมูล ณ ${fmtDate(latest)} • Live from Google Sheet`:(store.solutions.length?`ข้อมูล ณ ${fmtDate(latest)} • ใช้ Snapshot สำรอง`:"ไม่สามารถโหลดข้อมูล Solution ได้ กรุณาตรวจสิทธิ์ Google Sheet");
   $("solutionLeaderScope").textContent=scope;$("solutionComparisonScope").textContent=scope;
   renderSolutionLeaders(products,group,region,branch,metric);
   $("solutionComparisonTables").innerHTML=products.map(product=>solutionComparisonCard(product,solutionScopeRows(product,group,region,branch),metric)).join("");
