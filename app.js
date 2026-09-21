@@ -271,7 +271,10 @@ function renderBranchTable(service,group,region){
 }
 
 function downsellDetailData(level,group,region){
-  let pool=store.downsellDetails.filter(row=>String(row.Level).toUpperCase()===level&&inScope(row.Region,group,region));
+  const source=level==="AREA"&&store.live
+    ? store.downsell
+    : store.downsellDetails.filter(row=>String(row.Level).toUpperCase()===level);
+  let pool=source.filter(row=>inScope(row.Region,group,region));
   const latest=[...new Set(pool.map(row=>row["Report Date"]))].sort().at(-1);
   pool=pool.filter(row=>row["Report Date"]===latest);
   const sortRisk=(a,b)=>n(b["RR / Budget"])-n(a["RR / Budget"]);
